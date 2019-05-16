@@ -16,8 +16,8 @@ class XueQiuTrader(webtrader.WebTrader):
 
     _HEADERS = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/64.0.3282.167 Safari/537.36",
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/64.0.3282.167 Safari/537.36",
         "Host": "xueqiu.com",
         "Pragma": "no-cache",
         "Connection": "keep-alive",
@@ -131,14 +131,43 @@ class XueQiuTrader(webtrader.WebTrader):
         html = self._get_html(url)
         match_info = re.search(r"(?<=SNB.cubeInfo = ).*(?=;\n)", html)
         if match_info is None:
-            raise Exception(
-                "cant get portfolio info, portfolio html : {}".format(html)
-            )
+            log.error("cant get portfolio info")
+            # log.error("cant get portfolio info, portfolio html : {}".format(html))
+            return
         try:
             portfolio_info = json.loads(match_info.group())
         except Exception as e:
-            raise Exception("get portfolio info error: {}".format(e))
+            log.error("get portfolio info error: {}".format(e))
+            return
         return portfolio_info
+
+    def _get_top_cubes_info(self, period, size):
+        """
+        获取排名靠前的实盘组合列表
+        :return: 列表
+        """
+        top_cube_position = {}
+        page = 1
+        while len(top_cube_position) < size:
+            data = {
+                "tid": "PAMID",
+                "period": period,
+                "page": page
+            }
+            r = self.s.get(self.config["top_cube_list_url"], params=data)
+            cubes = json.loads(r.text)
+            for top_cube in cubes['result_data']['list']:
+                if len(top_cube_position) < size:
+                    position_list = self.get_position_for_xq(top_cube['symbol'])
+                    if len(position_list) >= 3:
+                        print("**************************************************************")
+                        print("当前组合：" + top_cube['symbol'])
+                        print(position_list)
+                        top_cube_position.setdefault(top_cube['symbol'], position_list)
+                else:
+                    break
+            page = page + 1
+        return top_cube_position
 
     def get_balance(self):
         """
@@ -164,13 +193,42 @@ class XueQiuTrader(webtrader.WebTrader):
             }
         ]
 
-    def _get_position(self):
+    def get_balance(self):
+        """
+        获取账户资金状况
+        :return:
+        """
+        portfolio_code = self.account_config.get("portfolio_code", "ch")
+        portfolio_info = self._get_portfolio_info(portfolio_code)
+        asset_balance = self._virtual_to_balance(
+            float(portfolio_info["net_value"])
+        )  # 总资产
+        position = portfolio_info["view_rebalancing"]  # 仓位结构
+        cash = asset_balance * float(position["cash"]) / 100
+        market = asset_balance - cash
+        return [
+            {
+                "asset_balance": asset_balance,
+                "current_balance": cash,
+                "enable_balance": cash,
+                "market_value": market,
+                "money_type": u"人民币",
+                "pre_interest": 0.25,
+            }
+        ]
+
+    def _get_position(self, symbol=None):
         """
         获取雪球持仓
         :return:
         """
-        portfolio_code = self.account_config["portfolio_code"]
+        if symbol is None:
+            portfolio_code = self.account_config["portfolio_code"]
+        else:
+            portfolio_code = symbol
         portfolio_info = self._get_portfolio_info(portfolio_code)
+        if portfolio_info is None:
+            return
         position = portfolio_info["view_rebalancing"]  # 仓位结构
         stocks = position["holdings"]  # 持仓股票
         return stocks
@@ -189,7 +247,7 @@ class XueQiuTrader(webtrader.WebTrader):
         获取持仓
         :return:
         """
-        xq_positions = self._get_position()
+        xq_positions = self._get_position(symbol)
         balance = self.get_balance()[0]
         position_list = []
         for pos in xq_positions:
@@ -208,6 +266,24 @@ class XueQiuTrader(webtrader.WebTrader):
                     "stock_name": pos["stock_name"],
                 }
             )
+        return position_list
+
+    def get_position_for_xq(self, symbol=None):
+        """
+        获取持仓
+        :return:
+        """
+        xq_positions = self._get_position(symbol)
+        position_list = []
+        if xq_positions is not None:
+            for pos in xq_positions:
+                position_list.append({
+                    "stock_symbol": pos["stock_symbol"],
+                    "stock_name": pos["stock_name"],
+                    "weight": pos["weight"],
+                    "segment_id": pos["segment_id"],
+                    "segment_name": pos["segment_name"]
+                })
         return position_list
 
     def _get_xq_history(self):
@@ -254,7 +330,7 @@ class XueQiuTrader(webtrader.WebTrader):
                         "entrust_no": entrust["id"],
                         "entrust_bs": u"买入"
                         if entrust["target_weight"]
-                        > replace_none(entrust["prev_weight"])
+                           > replace_none(entrust["prev_weight"])
                         else u"卖出",
                         "report_time": self._time_strftime(
                             entrust["updated_at"]
@@ -289,15 +365,15 @@ class XueQiuTrader(webtrader.WebTrader):
                         else "sell"
                     )
                     if (
-                        entrust["target_weight"] == 0
-                        and entrust["weight"] == 0
+                            entrust["target_weight"] == 0
+                            and entrust["weight"] == 0
                     ):
                         raise exceptions.TradeError(u"移除的股票操作无法撤销,建议重新买入")
                     balance = self.get_balance()[0]
                     volume = (
-                        abs(entrust["target_weight"] - entrust["weight"])
-                        * balance["asset_balance"]
-                        / 100
+                            abs(entrust["target_weight"] - entrust["weight"])
+                            * balance["asset_balance"]
+                            / 100
                     )
                     r = self._trade(
                         security=entrust["stock_symbol"],
@@ -468,15 +544,15 @@ class XueQiuTrader(webtrader.WebTrader):
 
         if entrust_bs == "buy":
             cash = (
-                (balance["current_balance"] - volume)
-                / balance["asset_balance"]
-                * 100
+                    (balance["current_balance"] - volume)
+                    / balance["asset_balance"]
+                    * 100
             )
         else:
             cash = (
-                (balance["current_balance"] + volume)
-                / balance["asset_balance"]
-                * 100
+                    (balance["current_balance"] + volume)
+                    / balance["asset_balance"]
+                    * 100
             )
         cash = round(cash, 2)
         log.debug("weight:%f, cash:%f", weight, cash)
@@ -546,3 +622,6 @@ class XueQiuTrader(webtrader.WebTrader):
         :param entrust_prop:
         """
         return self._trade(security, price, amount, volume, "sell")
+
+    def get_top_cube_list(self, period, page):
+        return self._get_top_cubes_info(period, page)

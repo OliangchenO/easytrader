@@ -5,5 +5,6 @@
   "search_stock_url": "https://xueqiu.com/stock/p/search.json",
   "rebalance_url": "https://xueqiu.com/cubes/rebalancing/create.json",
   "history_url": "https://xueqiu.com/cubes/rebalancing/history.json",
-  "referer": "https://xueqiu.com/p/update?action=holdings&symbol=%s"
+  "referer": "https://xueqiu.com/p/update?action=holdings&symbol=%s",
+  "top_cube_list_url": "https://xueqiu.com/snowman/service/cubes/rank"
 }
