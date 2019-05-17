@@ -53,6 +53,13 @@ class XueQiuTrader(webtrader.WebTrader):
         """
         self._set_cookies(self.account_config["cookies"])
 
+    def _get_cookie(self, i):
+        cookies = [
+            "xq_a_token=f08a32e242338bcc98ff69c2c46f06491e601791; xq_r_token=8ff15c48ad46599ebf51ba3b4ff8b268768a04bc",
+            "xq_a_token=8e8257f583bfb613c5a23f9e5b6cd4f63ff23c5b; xq_r_token=22152bf1cd9f4bc6e8e14461bf1cac33678eedb8",
+            "xq_a_token=f4254e7026648a2ca246e63187877ef3890bae41; xq_r_token=b984c956d81916bbd6be0aa47bfce231978731ab"]
+        return cookies[i]
+
     def _set_cookies(self, cookies):
         """设置雪球 cookies，代码来自于
         https://github.com/shidenggui/easytrader/issues/269
@@ -94,8 +101,8 @@ class XueQiuTrader(webtrader.WebTrader):
         """
         return virtual * self.multiple
 
-    def _get_html(self, url):
-        return self.s.get(url).text
+    def _get_html(self, url, data=None):
+        return self.s.get(url, params=data)
 
     def _search_stock_info(self, code):
         """
@@ -128,7 +135,7 @@ class XueQiuTrader(webtrader.WebTrader):
         :return: 字典
         """
         url = self.config["portfolio_url"] + portfolio_code
-        html = self._get_html(url)
+        html = self._get_html(url).text
         match_info = re.search(r"(?<=SNB.cubeInfo = ).*(?=;\n)", html)
         if match_info is None:
             log.error("cant get portfolio info")
@@ -154,7 +161,7 @@ class XueQiuTrader(webtrader.WebTrader):
                 "period": period,
                 "page": page
             }
-            r = self.s.get(self.config["top_cube_list_url"], params=data)
+            r = self._get_html(self.config["top_cube_list_url"], data)
             cubes = json.loads(r.text)
             for top_cube in cubes['result_data']['list']:
                 if len(top_cube_position) < size:
@@ -166,7 +173,13 @@ class XueQiuTrader(webtrader.WebTrader):
                         top_cube_position.setdefault(top_cube['symbol'], position_list)
                 else:
                     break
+            num = page % 2
+            cookie = self._get_cookie(num)
+            print("更换cookies:" + cookie)
+            self._set_cookies(cookie)
             page = page + 1
+            print("查询page:" + str(page) + "休息一下")
+            time.sleep(10)
         return top_cube_position
 
     def get_balance(self):
