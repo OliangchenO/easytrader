@@ -53,13 +53,6 @@ class XueQiuTrader(webtrader.WebTrader):
         """
         self._set_cookies(self.account_config["cookies"])
 
-    def _get_cookie(self, i):
-        cookies = [
-            "xq_a_token=f08a32e242338bcc98ff69c2c46f06491e601791; xq_r_token=8ff15c48ad46599ebf51ba3b4ff8b268768a04bc",
-            "xq_a_token=8e8257f583bfb613c5a23f9e5b6cd4f63ff23c5b; xq_r_token=22152bf1cd9f4bc6e8e14461bf1cac33678eedb8",
-            "xq_a_token=f4254e7026648a2ca246e63187877ef3890bae41; xq_r_token=b984c956d81916bbd6be0aa47bfce231978731ab"]
-        return cookies[i]
-
     def _set_cookies(self, cookies):
         """设置雪球 cookies，代码来自于
         https://github.com/shidenggui/easytrader/issues/269
@@ -139,12 +132,13 @@ class XueQiuTrader(webtrader.WebTrader):
         match_info = re.search(r"(?<=SNB.cubeInfo = ).*(?=;\n)", html)
         if match_info is None:
             log.error("cant get portfolio info")
-            # log.error("cant get portfolio info, portfolio html : {}".format(html))
+            raise Exception
             return
         try:
             portfolio_info = json.loads(match_info.group())
         except Exception as e:
             log.error("get portfolio info error: {}".format(e))
+            raise Exception
             return
         return portfolio_info
 
@@ -153,9 +147,9 @@ class XueQiuTrader(webtrader.WebTrader):
         获取排名靠前的实盘组合列表
         :return: 列表
         """
-        top_cube_position = {}
+        top_cube_symbol_list = []
         page = 1
-        while len(top_cube_position) < size:
+        while len(top_cube_symbol_list) < size:
             data = {
                 "tid": "PAMID",
                 "period": period,
@@ -164,23 +158,12 @@ class XueQiuTrader(webtrader.WebTrader):
             r = self._get_html(self.config["top_cube_list_url"], data)
             cubes = json.loads(r.text)
             for top_cube in cubes['result_data']['list']:
-                if len(top_cube_position) < size:
-                    position_list = self.get_position_for_xq(top_cube['symbol'])
-                    if len(position_list) >= 3:
-                        print("**************************************************************")
-                        print("当前组合：" + top_cube['symbol'])
-                        print(position_list)
-                        top_cube_position.setdefault(top_cube['symbol'], position_list)
+                if len(top_cube_symbol_list) < size:
+                    top_cube_symbol_list.append(top_cube['symbol'])
                 else:
                     break
-            num = page % 2
-            cookie = self._get_cookie(num)
-            print("更换cookies:" + cookie)
-            self._set_cookies(cookie)
             page = page + 1
-            print("查询page:" + str(page) + "休息一下")
-            time.sleep(10)
-        return top_cube_position
+        return top_cube_symbol_list
 
     def get_balance(self):
         """
@@ -206,29 +189,15 @@ class XueQiuTrader(webtrader.WebTrader):
             }
         ]
 
-    def get_balance(self):
+    def get_balance_for_follow(self):
         """
         获取账户资金状况
         :return:
         """
         portfolio_code = self.account_config.get("portfolio_code", "ch")
         portfolio_info = self._get_portfolio_info(portfolio_code)
-        asset_balance = self._virtual_to_balance(
-            float(portfolio_info["net_value"])
-        )  # 总资产
         position = portfolio_info["view_rebalancing"]  # 仓位结构
-        cash = asset_balance * float(position["cash"]) / 100
-        market = asset_balance - cash
-        return [
-            {
-                "asset_balance": asset_balance,
-                "current_balance": cash,
-                "enable_balance": cash,
-                "market_value": market,
-                "money_type": u"人民币",
-                "pre_interest": 0.25,
-            }
-        ]
+        return position
 
     def _get_position(self, symbol=None):
         """
@@ -281,11 +250,13 @@ class XueQiuTrader(webtrader.WebTrader):
             )
         return position_list
 
-    def get_position_for_xq(self, symbol=None):
+    def get_position_for_xq(self, symbol=None, cookies=None):
         """
         获取持仓
         :return:
         """
+        if cookies is not None:
+            self._set_cookies(cookies)
         xq_positions = self._get_position(symbol)
         position_list = []
         if xq_positions is not None:
