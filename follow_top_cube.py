@@ -2,6 +2,7 @@ import random
 from datetime import datetime
 import json
 import redis
+import os
 
 import time
 
@@ -10,8 +11,12 @@ import easytrader
 redis_export_time = 86400
 r = redis.Redis(host='localhost', port=6379, db=0)
 date_str = datetime.now().strftime("%Y-%m-%d")
+# 获取当前文件路径
+current_path = os.path.abspath(__file__)
+# 获取当前文件的父目录
+father_path = os.path.abspath(os.path.dirname(current_path) + os.path.sep + ".")
 user = easytrader.use('xq')
-user.prepare("xq.json")
+user.prepare(os.path.join(father_path, "xq.json"))
 
 
 def get_cookie():
@@ -122,3 +127,4 @@ if error_code is None:
     weight = cash/len(should_buy_list)
     for buy_stock in should_buy_list:
         user.adjust_weight(buy_stock, weight)
+time.sleep(10)
