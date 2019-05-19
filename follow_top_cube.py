@@ -3,6 +3,7 @@ from datetime import datetime
 import json
 import redis
 import os
+import easytrader.sendmail
 
 import time
 
@@ -127,4 +128,6 @@ if error_code is None:
     weight = cash/len(should_buy_list)
     for buy_stock in should_buy_list:
         user.adjust_weight(buy_stock, weight)
-time.sleep(10)
+mail = easytrader.sendmail.MailUtils()
+mail.send_email("593705862@qq.com", "调仓成功", "调仓成功")
+
