@@ -122,7 +122,7 @@ for now_holding_stock in now_holding:
     else:
         should_buy_list.remove(stock_symbol)
 balance = user.get_balance_for_follow()
-error_code = balance["error_message"]
+error_code = balance["error_code"]
 if error_code is None:
     cash = balance["cash"]
     weight = cash/len(should_buy_list)
