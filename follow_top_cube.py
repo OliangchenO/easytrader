@@ -114,20 +114,24 @@ print(now_holding)
 should_buy_list = []
 for buy_stock in cube_holdings_5:
     should_buy_list.append(buy_stock[0])
+adjust_info = "调仓成功！ "
 for now_holding_stock in now_holding:
     stock_symbol = now_holding_stock["stock_symbol"]
     if stock_symbol not in should_buy_list:
         # 当前持仓不在备选组合中卖出
         user.adjust_weight(stock_symbol, 0)
+        adjust_info.join("卖出，股票：" + stock_symbol)
     else:
         should_buy_list.remove(stock_symbol)
 balance = user.get_balance_for_follow()
 error_code = balance["error_code"]
 if error_code is None:
     cash = balance["cash"]
-    weight = cash/len(should_buy_list)
-    for buy_stock in should_buy_list:
-        user.adjust_weight(buy_stock, weight)
+    if len(should_buy_list) > 0:
+        weight = cash/len(should_buy_list)
+        for buy_stock in should_buy_list:
+            user.adjust_weight(buy_stock, weight)
+            adjust_info.join("买入，股票：" + buy_stock + "买入比例：" + weight)
 mail = easytrader.sendmail.MailUtils()
-mail.send_email("593705862@qq.com", "调仓成功", "调仓成功")
+mail.send_email("593705862@qq.com", "调仓成功", adjust_info)
 
