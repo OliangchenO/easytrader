@@ -131,7 +131,8 @@ if error_code is None:
         weight = cash/len(should_buy_list)
         for buy_stock in should_buy_list:
             user.adjust_weight(buy_stock, weight)
-            adjust_info.join("买入，股票：" + buy_stock + "买入比例：" + weight)
+            adjust_info.join("买入，股票：" + buy_stock + "买入比例：" + str(weight))
 mail = easytrader.sendmail.MailUtils()
 mail.send_email("593705862@qq.com", "调仓成功", adjust_info)
+
 
