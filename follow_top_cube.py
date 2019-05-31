@@ -4,9 +4,7 @@ import json
 import redis
 import os
 import easytrader.sendmail
-
 import time
-
 import easytrader
 
 redis_export_time = 86400
@@ -81,7 +79,10 @@ def get_top_cubes_holding(symbol):
                 time.sleep(1200)
                 reset_cookies()
             cookies = get_cookie()
-            holding_list = user.get_position_for_xq(cube_symbol, cookies)
+            try:
+                holding_list = user.get_position_for_xq(cube_symbol, cookies)
+            except Exception as e:
+                print(e)
             r.set(cube_holding_list_key, json.dumps(holding_list), redis_export_time)
     print(holding_list)
     return holding_list
@@ -95,12 +96,13 @@ for cube_symbol in cube_list:
 print(cubes_holding)
 cubes_holding_pre = {}
 for (cube_symbol, holdings) in cubes_holding.items():
-    for holding_stock in holdings:
-        if holding_stock["stock_symbol"] is not None and holding_stock["stock_symbol"] in cubes_holding_pre:
-            weight = float(cubes_holding_pre.get(holding_stock["stock_symbol"]))
-            cubes_holding_pre[holding_stock["stock_symbol"]] = float(holding_stock["weight"]) + weight
-        else:
-            cubes_holding_pre[holding_stock["stock_symbol"]] = float(holding_stock["weight"])
+    if holdings is not None:
+        for holding_stock in holdings:
+            if holding_stock["stock_symbol"] is not None and holding_stock["stock_symbol"] in cubes_holding_pre:
+                weight = float(cubes_holding_pre.get(holding_stock["stock_symbol"]))
+                cubes_holding_pre[holding_stock["stock_symbol"]] = float(holding_stock["weight"]) + weight
+            else:
+                cubes_holding_pre[holding_stock["stock_symbol"]] = float(holding_stock["weight"])
 # cube_holdings_rank = sorted(cubes_holding_pre.items(), key=lambda stock: stock[1], reverse=True)
 cube_holdings_rank = sorted(cubes_holding_pre.items(), key=lambda stock: stock[1], reverse=True)
 print("当前选股排名**********************************************")
