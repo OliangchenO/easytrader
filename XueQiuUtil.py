@@ -98,6 +98,7 @@ class XueQiuUtil:
         for (cube_symbol, holdings) in cubes_holding.items():
             if holdings is not None:
                 for holding_stock in holdings:
+                    self.r.set(holding_stock["stock_symbol"], holding_stock["stock_name"], self.redis_export_time)
                     if holding_stock["stock_symbol"] is not None and holding_stock["stock_symbol"] in cubes_holding_pre:
                         weight = float(cubes_holding_pre.get(holding_stock["stock_symbol"]))
                         cubes_holding_pre[holding_stock["stock_symbol"]] = float(holding_stock["weight"]) + weight
@@ -109,7 +110,10 @@ class XueQiuUtil:
         log.info(cube_holdings_rank)
         cube_holdings_5 = cube_holdings_rank[0:5]
         log.info("前五名持仓**************************************")
-        log.info(cube_holdings_5)
+        cube_holdings_5_info = {}
+        for code in cube_holdings_5:
+            cube_holdings_5_info.setdefault(code[0], str(self.r.get(code[0]).decode()))
+        log.info(cube_holdings_5_info)
         log.info("当前持仓：*********************************************")
         now_holding = self.user.get_position_for_xq()
         log.info(now_holding)
@@ -122,7 +126,7 @@ class XueQiuUtil:
             if stock_symbol not in should_buy_list:
                 # 当前持仓不在备选组合中卖出
                 self.user.adjust_weight(stock_symbol, 0)
-                adjust_info = adjust_info + "卖出，股票：" + stock_symbol
+                adjust_info = adjust_info + "卖出，股票代码：" + stock_symbol + "股票名称：" + self.r.get(stock_symbol)
             else:
                 should_buy_list.remove(stock_symbol)
         balance = self.user.get_balance_for_follow()
@@ -133,6 +137,6 @@ class XueQiuUtil:
                 weight = cash/len(should_buy_list)
                 for buy_stock in should_buy_list:
                     self.user.adjust_weight(buy_stock, weight)
-                    adjust_info = adjust_info + "买入，股票：" + buy_stock + "买入比例：" + str(weight)
+                    adjust_info = adjust_info + "买入，股票代码：" + buy_stock + " ，股票名称：" + self.r.get(buy_stock) + " ,买入比例：" + str(weight)
         mail = easytrader.sendmail.MailUtils()
         mail.send_email("593705862@qq.com", "调仓成功", adjust_info)
