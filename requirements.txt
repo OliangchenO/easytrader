@@ -1,3 +1,4 @@
+loguru
 conda
 redis
 -i http://mirrors.aliyun.com/pypi/simple/
