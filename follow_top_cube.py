@@ -25,9 +25,9 @@ def get_cookie():
 
 def reset_cookies():
     redis_cookies = [
-        "xq_a_token=f08a32e242338bcc98ff69c2c46f06491e601791; xq_r_token=8ff15c48ad46599ebf51ba3b4ff8b268768a04bc",
-        "xq_a_token=8e8257f583bfb613c5a23f9e5b6cd4f63ff23c5b; xq_r_token=22152bf1cd9f4bc6e8e14461bf1cac33678eedb8",
-        "xq_a_token=f4254e7026648a2ca246e63187877ef3890bae41; xq_r_token=b984c956d81916bbd6be0aa47bfce231978731ab"]
+        "xq_a_token=6201b31367db170d1d5dc80f5f648d29497132dc; xq_r_token=cf68c097df4cb4fd7aba31979c9254bcf7bc2324",
+        "xq_a_token=62b3b5c358df382b2126249d1de4b55c4c6aa212; xq_r_token=7c99aec88f2eb3c05f9a4c9fe7cc22b92a636e5d",
+        "xq_a_token=a70426444e4054bc4597d9e4d89cd929748dd7bc; xq_r_token=a6fd78279c20fa22c83f71eb7063398f9fc4b99f"]
     r.set("xue_qiu_cookies", json.dumps(redis_cookies))
 
 
@@ -122,7 +122,7 @@ for now_holding_stock in now_holding:
     if stock_symbol not in should_buy_list:
         # 当前持仓不在备选组合中卖出
         user.adjust_weight(stock_symbol, 0)
-        adjust_info.join("卖出，股票：" + stock_symbol)
+        adjust_info = adjust_info + "卖出，股票：" + stock_symbol
     else:
         should_buy_list.remove(stock_symbol)
 balance = user.get_balance_for_follow()
@@ -133,7 +133,7 @@ if error_code is None:
         weight = cash/len(should_buy_list)
         for buy_stock in should_buy_list:
             user.adjust_weight(buy_stock, weight)
-            adjust_info = adjust_info.join("买入，股票：" + buy_stock + "买入比例：" + str(weight))
+            adjust_info = adjust_info + "买入，股票：" + buy_stock + "买入比例：" + str(weight)
 mail = easytrader.sendmail.MailUtils()
 mail.send_email("593705862@qq.com", "调仓成功", adjust_info)
 
